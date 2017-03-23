@@ -1,0 +1,7 @@
+*.pyc
+*.pyo
+.env
+.env2
+.env3
+.env36
+__pycache__

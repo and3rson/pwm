@@ -1,0 +1,7 @@
+pages:
+  - name: terminals
+    match: foo
+    layout: htile
+  - name: web
+    match: bar
+    layout: max
