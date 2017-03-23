@@ -5,7 +5,7 @@ import xcffib.xproto
 import xkeysyms
 from window import Window
 import cursor
-from xcffib.xproto import CW, EventMask, ModMask
+from xcffib.xproto import CW, EventMask
 import argparse
 import yaml
 import page
@@ -61,7 +61,23 @@ class WindowManager(object):
             print('Windows:', self.windows)
 
         def select_other(wm, cbkey):
-            print('Switching to other window')
+            windows = self.current_page.get_windows()
+            # print('Windows on this page:', list(map(id, windows)))
+            # print('Current window:', id(self.current_page.get_current_window()))
+            current_index = windows.index(self.current_page.get_current_window())
+            if current_index == -1:
+                print('No windows on this page')
+                return
+            next_index = (current_index + 1) % len(windows)
+            if next_index == current_index:
+                print('Only one window on this page')
+                return
+            print('Switching window', windows[current_index], '->', windows[next_index])
+            self.current_page.focus_window(windows[next_index])
+            # TODO
+            # self.current_page.select_next_window()
+            # print('Switching to other window')
+            # self.set_focus()
 
         def select_next_page(wm, cbkey):
             current_index = self.pages.index(self.current_page)
@@ -75,10 +91,19 @@ class WindowManager(object):
                 prev_index = len(self.pages) - 1
             self.switch_page(self.pages[prev_index])
 
+        def select_window(num):
+            def cb(wm, cbkey):
+                self.current_page.focus_window(self.current_page.get_windows()[num - 1])
+            return cb
+
         self.register_hotkey(xkeysyms.keysyms['d'], xkeysyms.modmasks['control'], debug)
         self.register_hotkey(xkeysyms.keysyms['o'], xkeysyms.modmasks['control'], select_other)
+        # self.register_hotkey(xkeysyms.keysyms['l'], xkeysyms.modmasks['control'], lay_out)
         self.register_hotkey(xkeysyms.keysyms['p'], xkeysyms.modmasks['control'], select_prev_page)
         self.register_hotkey(xkeysyms.keysyms['n'], xkeysyms.modmasks['control'], select_next_page)
+
+        self.register_hotkey(xkeysyms.keysyms['1'], xkeysyms.modmasks['control'], select_window(1))
+        self.register_hotkey(xkeysyms.keysyms['2'], xkeysyms.modmasks['control'], select_window(2))
 
     def _create_root_window(self):
         root_win = Window(self, self.screen.root, None)
@@ -151,6 +176,8 @@ class WindowManager(object):
 
         window = self.register_window(e.window)
         window.configure(**args)
+
+        window.get_page().get_layout().lay_out()
 
         # count = len(self.windows)
         # win_width = int(screen.width_in_pixels / count)

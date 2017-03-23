@@ -1,5 +1,5 @@
 import cursor
-from xcffib.xproto import CW, ConfigWindow, GrabMode, ModMask, Atom
+from xcffib.xproto import CW, ConfigWindow, GrabMode, ModMask, Atom, InputFocus, Time, EventMask
 
 
 class Window(object):
@@ -10,6 +10,8 @@ class Window(object):
         self.conn = wm.get_conn()
         self.wid = wid
         self.page = page
+
+        # self.ungrab_button()
 
         # self.grab_key(xkeysyms.keysyms['a'], xkeysyms.modmasks['control'])
 
@@ -48,7 +50,6 @@ class Window(object):
         if 'stack_mode' in kwargs:
             mask |= ConfigWindow.StackMode
             values.append(kwargs['stack_mode'])
-        print(mask, values)
         self.conn.core.ConfigureWindow(self.wid, mask, values, True).check()
 
     def map(self):
@@ -60,7 +61,6 @@ class Window(object):
 
     def grab_key(self, keysym, modifiers, owner_events=True, pointer_mode=GrabMode.Async, keyboard_mode=GrabMode.Async):
         code = self.wm.get_keymap().keysym_to_keycode(keysym)
-        print((1 if owner_events else 0, self.wid, modifiers, code, pointer_mode, keyboard_mode, True))
         self.conn.core.GrabKey(1 if owner_events else 0, self.wid, modifiers, code, pointer_mode, keyboard_mode, True)
 
     def grab_button(self, button, modifiers, owner_events, event_mask, pointer_mode=GrabMode.Async, keyboard_mode=GrabMode.Async):
@@ -82,10 +82,23 @@ class Window(object):
     def get_page(self):
         return self.page
 
+    def focus(self):
+        # PointerRoot
+        print('Focusing window', self)
+        # self.conn.core.SetInputFocus(InputFocus.PointerRoot, self.wid, Time.CurrentTime)
+        # if self.page.current_window is not None:
+        #     self.page.current_window.ungrab_button()
+        # for window in self.page.get_windows():
+        #     window.ungrab_button()
+        # self.grab_button(Atom.Any, ModMask.Any, True, EventMask.ButtonPress | EventMask.ButtonRelease | EventMask.ButtonMotion)
+        # self.unmap()
+        # self.map()
+        self.conn.core.SetInputFocus(InputFocus.PointerRoot, self.wid, Time.CurrentTime, True).check()
+
     def __repr__(self):
         return '<Window id={} page={}>'.format(
             self.wid,
-            self.page
+            self.page.get_name()
         )
 
     __str__ = __repr__
