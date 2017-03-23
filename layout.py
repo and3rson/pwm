@@ -14,11 +14,20 @@ class Layout(object):
 
     def show(self):
         for window in self.page.get_windows():
+            print('Mapping', window.wid)
             window.map()
 
     def hide(self):
         for window in self.page.get_windows():
+            print('Unmapping', window.wid)
             window.unmap()
+
+    def __repr__(self):
+        return '<Layout name={}>'.format(
+            self.name
+        )
+
+    __str__ = __repr__
 
 
 class HTile(Layout):
@@ -28,10 +37,12 @@ class HTile(Layout):
         screen = self.wm.get_screen()
         windows = self.page.get_windows()
         count = len(windows)
+        if not count:
+            return
         win_width = int(screen.width_in_pixels / count)
         win_height = screen.height_in_pixels
 
-        for i, window in enumerate(windows.values()):
+        for i, window in enumerate(windows):
             window.configure(x=win_width * i, y=0, width=win_width, height=win_height)
 
 

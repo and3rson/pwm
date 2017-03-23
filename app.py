@@ -5,7 +5,7 @@ import xcffib.xproto
 import xkeysyms
 from window import Window
 import cursor
-from xcffib.xproto import CW, EventMask
+from xcffib.xproto import CW, EventMask, ModMask
 import argparse
 import yaml
 import page
@@ -52,13 +52,36 @@ class WindowManager(object):
             xcffib.xproto.KeyReleaseEvent: self.handle_key_release
         }
 
-        def do_stuff(wm, cbkey):
-            print('Doing stuff!')
+        # self.root_win.ungrab_button()
+        # self.root_win.grab_button(0, ModMask.Any, True, EventMask.ButtonPress | EventMask.ButtonRelease | EventMask.ButtonMotion)
+        # self.root_win.grab_button(1, ModMask.Any, True, EventMask.ButtonPress | EventMask.ButtonRelease | EventMask.ButtonMotion)
 
-        self.register_hotkey(xkeysyms.keysyms['n'], xkeysyms.modmasks['control'], do_stuff)
+        def debug(wm, cbkey):
+            print('Pages:', self.pages)
+            print('Windows:', self.windows)
+
+        def select_other(wm, cbkey):
+            print('Switching to other window')
+
+        def select_next_page(wm, cbkey):
+            current_index = self.pages.index(self.current_page)
+            next_index = (current_index + 1) % len(self.pages)
+            self.switch_page(self.pages[next_index])
+
+        def select_prev_page(wm, cbkey):
+            current_index = self.pages.index(self.current_page)
+            prev_index = (current_index - 1)
+            if prev_index < 0:
+                prev_index = len(self.pages) - 1
+            self.switch_page(self.pages[prev_index])
+
+        self.register_hotkey(xkeysyms.keysyms['d'], xkeysyms.modmasks['control'], debug)
+        self.register_hotkey(xkeysyms.keysyms['o'], xkeysyms.modmasks['control'], select_other)
+        self.register_hotkey(xkeysyms.keysyms['p'], xkeysyms.modmasks['control'], select_prev_page)
+        self.register_hotkey(xkeysyms.keysyms['n'], xkeysyms.modmasks['control'], select_next_page)
 
     def _create_root_window(self):
-        root_win = Window(self, self.screen.root)
+        root_win = Window(self, self.screen.root, None)
 
         root_win.set_attributes(CW.EventMask, [
             EventMask.StructureNotify |
@@ -81,14 +104,23 @@ class WindowManager(object):
 
     def register_window(self, wid):
         if wid not in self.windows:
-            self.windows[wid] = Window(self, wid)
+            self.windows[wid] = Window(self, wid, self.current_page)
+            self.current_page.add_window(self.windows[wid])
         return self.windows[wid]
 
     def unregister_window(self, wid):
         if wid in self.windows:
+            window = self.windows[wid]
+            window.get_page().remove_window(window)
             del self.windows[wid]
             return True
         return False
+
+    def switch_page(self, page):
+        print('Switching page', self.current_page, '->', page)
+        self.current_page.hide()
+        self.current_page = page
+        self.current_page.show()
 
     def main(self):
         while True:

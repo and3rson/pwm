@@ -1,15 +1,15 @@
 import cursor
-from xcffib.xproto import CW, ConfigWindow, GrabMode
-import xkeysyms
+from xcffib.xproto import CW, ConfigWindow, GrabMode, ModMask, Atom
 
 
 class Window(object):
-    def __init__(self, wm, wid):
+    def __init__(self, wm, wid, page):
         print('New window:', wid)
 
         self.wm = wm
         self.conn = wm.get_conn()
         self.wid = wid
+        self.page = page
 
         # self.grab_key(xkeysyms.keysyms['a'], xkeysyms.modmasks['control'])
 
@@ -56,12 +56,39 @@ class Window(object):
         self.conn.core.MapWindow(self.wid, True).check()
 
     def unmap(self):
-        self.conn.core.UnmapWindow(self.wid)
+        self.conn.core.UnmapWindow(self.wid, True).check()
 
     def grab_key(self, keysym, modifiers, owner_events=True, pointer_mode=GrabMode.Async, keyboard_mode=GrabMode.Async):
         code = self.wm.get_keymap().keysym_to_keycode(keysym)
         print((1 if owner_events else 0, self.wid, modifiers, code, pointer_mode, keyboard_mode, True))
         self.conn.core.GrabKey(1 if owner_events else 0, self.wid, modifiers, code, pointer_mode, keyboard_mode, True)
+
+    def grab_button(self, button, modifiers, owner_events, event_mask, pointer_mode=GrabMode.Async, keyboard_mode=GrabMode.Async):
+        self.conn.core.GrabButton(
+            1 if owner_events else 0,
+            self.wid,
+            event_mask,
+            pointer_mode,
+            keyboard_mode,
+            Atom._None,
+            Atom._None,
+            button,
+            modifiers
+        )
+
+    def ungrab_button(self, button=Atom.Any, modifiers=ModMask.Any):
+        self.conn.core.UngrabButton(button, self.wid, modifiers)
+
+    def get_page(self):
+        return self.page
+
+    def __repr__(self):
+        return '<Window id={} page={}>'.format(
+            self.wid,
+            self.page
+        )
+
+    __str__ = __repr__
 
     # def register_key(self, keysym, modifiers, callback):
 
