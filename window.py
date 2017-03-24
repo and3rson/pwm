@@ -1,5 +1,6 @@
 import cursor
-from xcffib.xproto import CW, ConfigWindow, GrabMode, ModMask, Atom, InputFocus, Time, EventMask
+from xcffib.xproto import CW, ConfigWindow, GrabMode, ModMask, Atom, InputFocus, Time, PropMode
+from bus import bus
 
 
 class Window(object):
@@ -26,8 +27,32 @@ class Window(object):
             self.wid, CW.Cursor, [cursor_instance]
         ).check()
 
-    def set_property(self, key, value):
-        raise NotImplementedError()
+    def set_property(self, key, type, value):
+        # TODO: Cache atoms
+        self.conn.core.ChangeProperty(
+            PropMode.Replace,
+            self.wid,
+            self.conn.core.InternAtom(False, len(key), key).reply().atom,
+            self.conn.core.InternAtom(False, len(type), type).reply().atom,
+            8,
+            len(value),
+            value,
+            True
+        ).check()
+
+    def get_property(self, key, type):
+        # TODO: Cache atoms
+        return self.conn.core.GetProperty(
+            False,
+            self.wid,
+            self.conn.core.InternAtom(False, len(key), key).reply().atom,
+            self.conn.core.InternAtom(False, len(type), type).reply().atom,
+            0,
+            256
+        ).reply().value
+
+    def get_name(self):
+        return self.get_property('WM_NAME', 'STRING').to_string()
 
     def configure(self, **kwargs):
         mask = 0
@@ -94,6 +119,7 @@ class Window(object):
         # self.unmap()
         # self.map()
         self.conn.core.SetInputFocus(InputFocus.PointerRoot, self.wid, Time.CurrentTime, True).check()
+        bus.fire('window:focus', self)
 
     def __repr__(self):
         return '<Window id={} page={}>'.format(

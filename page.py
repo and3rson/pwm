@@ -1,4 +1,5 @@
 import layout
+from bus import bus
 
 
 class Page(object):
@@ -57,8 +58,12 @@ class Page(object):
             self.current_window.focus()
         self.layout.lay_out()
 
+        bus.fire('page:show', self)
+
     def hide(self):
         self.layout.hide()
+
+        bus.fire('page:hide', self)
 
     def get_current_window(self):
         # TODO: Implement this!

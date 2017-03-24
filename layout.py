@@ -43,7 +43,7 @@ class HTile(Layout):
         win_height = screen.height_in_pixels
 
         for i, window in enumerate(windows):
-            window.configure(x=win_width * i, y=0, width=win_width, height=win_height)
+            window.configure(x=win_width * i, y=24, width=win_width, height=win_height)
 
 
 class Max(Layout):
@@ -56,7 +56,7 @@ class Max(Layout):
                 window.map()
                 window.configure(
                     x=0,
-                    y=0,
+                    y=24,
                     width=screen.width_in_pixels,
                     height=screen.height_in_pixels
                 )

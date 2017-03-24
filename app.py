@@ -9,6 +9,8 @@ from xcffib.xproto import CW, EventMask
 import argparse
 import yaml
 import page
+import panel
+from bus import bus
 # from xcursors import Cursors
 # import Xlib.rdb
 
@@ -51,6 +53,8 @@ class WindowManager(object):
             xcffib.xproto.KeyPressEvent: self.handle_key_press,
             xcffib.xproto.KeyReleaseEvent: self.handle_key_release
         }
+
+        self.panel = panel.Panel(self, 0, 0, self.screen.width_in_pixels, 24)
 
         # self.root_win.ungrab_button()
         # self.root_win.grab_button(0, ModMask.Any, True, EventMask.ButtonPress | EventMask.ButtonRelease | EventMask.ButtonMotion)
@@ -96,7 +100,11 @@ class WindowManager(object):
                 self.current_page.focus_window(self.current_page.get_windows()[num - 1])
             return cb
 
-        self.register_hotkey(xkeysyms.keysyms['d'], xkeysyms.modmasks['control'], debug)
+        def spawn_terminal(wm, cbkey):
+            import subprocess
+            subprocess.Popen(['roxterm'])
+
+        # self.register_hotkey(xkeysyms.keysyms['d'], xkeysyms.modmasks['control'], debug)
         self.register_hotkey(xkeysyms.keysyms['o'], xkeysyms.modmasks['control'], select_other)
         # self.register_hotkey(xkeysyms.keysyms['l'], xkeysyms.modmasks['control'], lay_out)
         self.register_hotkey(xkeysyms.keysyms['p'], xkeysyms.modmasks['control'], select_prev_page)
@@ -104,6 +112,8 @@ class WindowManager(object):
 
         self.register_hotkey(xkeysyms.keysyms['1'], xkeysyms.modmasks['control'], select_window(1))
         self.register_hotkey(xkeysyms.keysyms['2'], xkeysyms.modmasks['control'], select_window(2))
+
+        self.register_hotkey(xkeysyms.keysyms['Return'], xkeysyms.modmasks['mod1'], spawn_terminal)
 
     def _create_root_window(self):
         root_win = Window(self, self.screen.root, None)
@@ -113,10 +123,11 @@ class WindowManager(object):
             EventMask.SubstructureNotify |
             EventMask.SubstructureRedirect |
             EventMask.EnterWindow |
-            EventMask.LeaveWindow
-            # EventMask.KeyPress
+            EventMask.LeaveWindow |
+            EventMask.KeyPress
         ])
         root_win.set_cursor(cursor.FontCursor.LeftPtr)
+        root_win.set_property('_NET_WM_NAME', 'UTF8_STRING', 'PWM')
 
         return root_win
 
@@ -131,6 +142,7 @@ class WindowManager(object):
         if wid not in self.windows:
             self.windows[wid] = Window(self, wid, self.current_page)
             self.current_page.add_window(self.windows[wid])
+            bus.fire('window:register')
         return self.windows[wid]
 
     def unregister_window(self, wid):
@@ -138,6 +150,7 @@ class WindowManager(object):
             window = self.windows[wid]
             window.get_page().remove_window(window)
             del self.windows[wid]
+            bus.fire('window:unregister')
             return True
         return False
 
@@ -227,6 +240,9 @@ class WindowManager(object):
 
     def get_screen(self):
         return self.screen
+
+    def get_root_win(self):
+        return self.root_win
 
     def get_setup(self):
         return self.setup
