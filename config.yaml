@@ -1,7 +1,52 @@
 pages:
-  - name: terminals
+  - name: term
     match: foo
     layout: htile
+
   - name: web
     match: bar
     layout: max
+
+panels:
+  - position: top
+    height: 24
+
+    widgets:
+    - name: PagesWidget
+    - name: SepWidget
+      args: [10]
+    - name: WindowsWidget
+    - name: SepWidget
+      args: [10]
+    - name: ClockWidget
+
+keys:
+  - bind: super+Page_Up
+    action: [prev_page]
+
+  - bind: super+Page_Down
+    action: [next_page]
+
+  - bind: super+1
+    action: [select_window, 1]
+
+  - bind: super+2
+    action: [select_window, 2]
+
+  - bind: super+3
+    action: [select_window, 3]
+
+  - bind: super+q
+    action: [select_page, 1]
+
+  - bind: super+w
+    action: [select_page, 2]
+
+  - bind: super+Return
+    action: [spawn, '/usr/bin/roxterm']
+
+  - bind: super+r
+    action: [spawn, '/usr/bin/rofi', '-show', 'run']
+
+autostart:
+  - run: ['./autostart.sh']

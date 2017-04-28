@@ -4,7 +4,7 @@
 # Copyright (c) 2014 Björn Lässig
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
+# of this software and associated documentation files (the 'Software'), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
@@ -13,7 +13,7 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -2207,16 +2207,22 @@ keysyms = {
 }
 
 modmasks = {
-    "shift": 1 << 0,
-    "lock": 1 << 1,
-    "control": 1 << 2,
-    "mod1": 1 << 3,
-    "mod2": 1 << 4,
-    "mod3": 1 << 5,
-    "mod4": 1 << 6,
-    "mod5": 1 << 7,
-    "any": 1 << 15,
-    "release": 1 << 16
+    'shift': 1 << 0,
+    'lock': 1 << 1,
+    'control': 1 << 2,
+    'mod1': 1 << 3,
+    'mod2': 1 << 4,
+    'mod3': 1 << 5,
+    'mod4': 1 << 6,
+    'mod5': 1 << 7,
+    'super': '',
+    'any': 1 << 15,
+    'release': 1 << 16
+}
+
+modmasks = {
+    'alt': modmasks['mod1'],
+    'super': modmasks['mod4']
 }
 
 
@@ -2255,3 +2261,18 @@ class KeyMap(object):
                 modifier >= len(self.code_to_syms[keycode]):
             return 0
         return self.code_to_syms[keycode][modifier]
+
+
+def parse_key_string(string):
+    key = None
+    modifiers = 0
+
+    for part in string.split('+'):
+        if part in keysyms:
+            key = keysyms[part]
+        elif part in modmasks:
+            modifiers |= modmasks[part]
+        else:
+            raise Exception('Unknown key or modifier: {}'.format(repr(key)))
+
+    return key, modifiers

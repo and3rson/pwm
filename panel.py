@@ -1,24 +1,37 @@
-import window
+from window import Window
 import drawing
-from xcffib.xproto import CW, WindowClass, EventMask  # , POINT
-import cairocffi
+from xcffib.xproto import CW, WindowClass
 from bus import bus
+import datetime
+import cairocffi
 
 
-class Panel(window.Window):
-    def __init__(self, wm, x, y, width, height):
-        self.wm = wm
-        self.conn = wm.get_conn()
+class Panel(Window):
+    def __init__(self, wm, position, height):
+        self._wm = wm
+        self._conn = wm.get_conn()
 
-        wid = self.conn.generate_id()
+        self._position = position
+        self._height = height
 
-        root_wid = wm.get_root_win().wid
+        self._widgets = []
+
+        wid = self._conn.generate_id()
+
+        root_wid = wm.get_root_win().get_wid()
         screen = wm.get_screen()
 
-        self.conn.core.CreateWindow(
+        x = 0
+        y = 0 if position == 'top' else (screen.height_in_pixels - height)
+        w = screen.width_in_pixels
+        h = height
+
+        self._width = w
+
+        self._conn.core.CreateWindow(
             screen.root_depth,
             wid, root_wid,
-            x, y, width, height,
+            x, y, w, h,
             0,
             WindowClass.InputOutput,
             screen.root_visual,
@@ -27,69 +40,207 @@ class Panel(window.Window):
             True
         ).check()
 
+        # self._pixmap_id = self._conn.generate_id()
+        # self._conn.core.CreatePixmap(
+        #     screen.root_depth,
+        #     self._pixmap_id,
+        #     wid,
+        #     w,
+        #     height,
+        #     True
+        # ).check()
+
+        self._painter = drawing.DrawableSurface(self._wm, self.get_width(), self.get_height())
+
+        # max_depth = [depth for depth in screen.allowed_depths if depth.depth == screen.root_depth][0]
+        # assert max_depth.depth == 24
+
+        # self._surface = cairocffi.XCBSurface(
+        #     self._conn,
+        #     self._pixmap_id,
+        #     max_depth.visuals[0],
+        #     w,
+        #     height
+        # )
+
+        # self._ctx = cairocffi.Context(self._surface)
+
         super(Panel, self).__init__(wm, wid, None)
+
+        self.set_property('_NET_WM_NAME', 'UTF8_STRING', 'Panel')
 
         self.map()
 
-        self.painter = drawing.CairoPainter(wm, wid, width, height)
+        # self._painter = drawing.CairoPainter(wm, wid, w, h)
 
-        self.update()
+        # self._painter.set_font('DejaVu Sans Mono', 12, True)
 
-        bus.on('page:show', self.update)
-        bus.on('window:focus', self.update)
-        bus.on('window:register', self.update)
-        bus.on('window:unregister', self.update)
+        bus.on('page:show', self.expose)
+        bus.on('window:focus', self.expose)
+        bus.on('window:register', self.expose)
+        bus.on('window:unregister', self.expose)
 
-    def update(self, *args):
-        # ctx.set_source_rgb(1, 0, 0)
-        # ctx.move_to(10, 10)
-        # ctx.rel_line_to(15, 15)
-        # ctx.stroke()
+    def get_position(self):
+        return self._position
 
-        self.painter.set_color(0x111111)
-        self.painter.fill()
+    def get_width(self):
+        return self._width
 
-        pages = [('{}' if page != self.wm.current_page else '[{}]').format(page.name) for page in self.wm.pages]
-        page = self.wm.current_page
-        windows = [('{}' if window != page.current_window else '[{}]').format(window.get_name()) for window in page.get_windows()]
+    def get_height(self):
+        return self._height
 
-        self.painter.set_font('DejaVu Sans Mono', 12)
+    def expose(self, *args):
+        # print('       Exposing!!!!!!!!')
+        self._painter.set_color(0xFF1177)
+        self._painter.fill()
+        # self._painter.copy(
+        #     self._pixmap_id,
+        #     self.get_width(),
+        #     self.get_height(),
+        #     0,
+        #     0
+        # )
 
-        self.painter.move_to(6, 6)
-        self.painter.set_color(0x0055FF)
-        self.painter.draw_text(' '.join(pages))
-        self.painter.move_to(12, 0, True)
-        self.painter.set_color(0x00FF55)
-        self.painter.draw_text(' '.join(windows))
-        # ctx.show_text(' '.join(pages) + ' | ' + ' '.join(windows))
+        # self._painter.set_font('DejaVu Sans Mono', 12, True)
 
-        # ext = ctx.text_extents('foobar')
-        # # xb, yb, w, h, xa, ya
-        # print(ext)
-        # # import ipdb; ipdb.set_trace()
+        # offset = 6
 
-        # ctx.move_to(200, 6)
-        # ctx.set_source_rgb(1.0, 0, 0)
-        # self.painter.draw_text('Foo')
-        # ctx.set_source_rgb(0, 1.0, 0)
-        # self.painter.draw_text('Bar')
-        # ctx.set_source_rgb(0, 0, 1.0)
-        # self.painter.draw_text('Baz')
+        widths = []
 
-        # ctx.show_text(' '.join(pages) + ' | ' + ' '.join(windows))
+        for widget in self._widgets:
+            widths.append(widget._render())
 
-        # ext = ctx.text_extents('foobar')
-        # print(ext)
-        # import ipdb; ipdb.set_trace()
+        expanding_count = len(list(filter(lambda width: width <= 0, widths)))
+        static_widths = sum(list(filter(lambda width: width > 0, widths)))
 
-        self.painter.render()
+        free_for_expanding = self.get_width() - static_widths
 
-        # self.painter.change(fg=0x222222, bg=0x222222)
+        widths = map(lambda width: (free_for_expanding / expanding_count) if width <= 0 else width, widths)
 
-        # self.painter.rect(0, 0, screen.width_in_pixels, screen.height_in_pixels)
+        offset_x = 0
 
-        # self.painter.change(fg=0x00FFFF, fontname='*x20')
+        for widget, width in zip(self._widgets, widths):
+            print('Widget =', widget, 'width =', width, 'offset =', offset_x)
+            # self._surface.set_source_surface(widget.get_surface(), offset_x, 0)
+            # self._surface.rectangle(offset_x, 0, width, self.get_height())
+            # self._surface.fill()
+            widget.get_painter().copy(
+                self._painter.get_pixmap_id(),
+                int(width),
+                self.get_height(),
+                int(offset_x),
+                0
+            )
+            # widget.get_painter().copy(
+            #     self._wid,
+            #     int(width),
+            #     self.get_height(),
+            #     int(offset_x),
+            #     0
+            # )
 
-        # # self.painter.poly(POINT.synthetic(10, 10), POINT.synthetic(30, 10))
+            offset_x += width
 
-        # self.painter.text(4, 18, 'PWM')
+        self._painter.copy(
+            self._wid,
+            self.get_width(),
+            self.get_height(),
+            0,
+            0
+        )
+
+        # self._conn.core.CopyArea(
+        #     self._painter.get_pixmap_id(),
+        #     self._wid,
+        #     self._gcid,
+        #     0, 0, 0, 0,
+        #     self.get_width(),
+        #     self.get_height(),
+        #     True
+        # ).check()
+
+    def add_widget(self, widget_cls, args):
+        widget = widget_cls(self._wm, self)
+        widget.init(*args)
+        self._widgets.append(widget)
+
+
+class Widget(object):
+    def __init__(self, wm, panel):
+        self._wm = wm
+        self._panel = panel
+        # self._surface = cairocffi.ImageSurface(cairocffi.FORMAT_ARGB32, panel.get_width(), panel.get_height())
+        # self._ctx = cairocffi.Context(self._surface)
+        # self._painter = drawing.SurfacePainter(self._surface)
+        self._painter = drawing.DrawableSurface(
+            wm,
+            panel.get_width(),
+            panel.get_height()
+        )
+        # self._painter = self._drawable_surface.get_painter()
+
+    def init(self):
+        pass
+
+    def _render(self):
+        self._painter.set_color(0x111111)
+        self._painter.fill()
+        self._painter.reset()
+        self._surface_width = self.render(self._wm, self._painter)
+        return self._surface_width
+        # self._ctx.set_operator(cairocffi.OPERATOR_SOURCE)
+        # self._ctx.paint()
+        # self._rendered_width = self.render(self._painter)
+
+    def get_painter(self):
+        return self._painter
+
+
+class PagesWidget(Widget):
+    def render(self, wm, painter):
+        width = 0
+
+        page_iter = iter(wm.get_pages())
+        next(page_iter, None)
+
+        for page in wm.get_pages():
+            if page == wm.get_current_page():
+                painter.set_color(0x0055FF)
+            else:
+                painter.set_color(0xFFFFFF)
+            width += painter.draw_text(page.get_name() + (' ' if next(page_iter, None) else ''))[0]
+
+        return width
+
+
+class SepWidget(Widget):
+    def init(self, width):
+        self._width = width
+
+    def render(self, wm, painter):
+        return self._width
+
+
+class WindowsWidget(Widget):
+    def render(self, wm, painter):
+        width = 0
+
+        window_iter = iter(wm.get_current_page().get_windows())
+        next(window_iter, None)
+
+        for window in wm.get_current_page().get_windows():
+            if window == wm.get_current_page().get_current_window():
+                painter.set_color(0x0055FF)
+            else:
+                painter.set_color(0xFFFFFF)
+            width += painter.draw_text(window.get_name() + (' ' if next(window_iter, None) else ''))[0]
+
+        return -1
+
+
+class ClockWidget(Widget):
+    def render(self, wm, painter):
+        painter.set_color(0x0055FF)
+        size = painter.draw_text(datetime.datetime.now().strftime('%H:%M:%S'))
+
+        return size[0]

@@ -1,7 +1,7 @@
 class Layout(object):
     def __init__(self, wm, page):
-        self.wm = wm
-        self.page = page
+        self._wm = wm
+        self._page = page
 
     @classmethod
     def get_name(cls):
@@ -13,18 +13,21 @@ class Layout(object):
         raise NotImplementedError()
 
     def show(self):
-        for window in self.page.get_windows():
-            print('Mapping', window.wid)
+        for window in self._page.get_windows():
+            # log.debug('Mapping %d', window.wid)
             window.map()
 
     def hide(self):
-        for window in self.page.get_windows():
-            print('Unmapping', window.wid)
+        for window in self._page.get_windows():
+            # log.debug('Unmapping %d', window.wid)
             window.unmap()
+
+    def focus_window(self, window):
+        raise NotImplementedError()
 
     def __repr__(self):
         return '<Layout name={}>'.format(
-            self.name
+            self._name
         )
 
     __str__ = __repr__
@@ -34,34 +37,49 @@ class HTile(Layout):
     name = 'htile'
 
     def lay_out(self):
-        screen = self.wm.get_screen()
-        windows = self.page.get_windows()
+        x, y, w, h = self._wm.get_usable_space()
+        windows = self._page.get_windows()
         count = len(windows)
         if not count:
             return
-        win_width = int(screen.width_in_pixels / count)
-        win_height = screen.height_in_pixels
+        win_width = int(w / count)
+        win_height = h
 
         for i, window in enumerate(windows):
-            window.configure(x=win_width * i, y=24, width=win_width, height=win_height)
+            window.configure(x=x + win_width * i, y=y, width=win_width, height=win_height)
+
+    def focus_window(self, window):
+        window.focus()
 
 
 class Max(Layout):
     name = 'max'
 
     def lay_out(self):
-        screen = self.wm.get_screen()
-        for window in self.page.get_windows():
-            if window == self.page.get_current_window():
+        x, y, w, h = self._wm.get_usable_space()
+        for window in self._page.get_windows():
+            # print('Lay out', window, dict(x=x + win_width * i, y=y, width=win_width, height=win_height))
+            # print('Layout', window)
+            if window == self._page.get_current_window():
                 window.map()
                 window.configure(
-                    x=0,
-                    y=24,
-                    width=screen.width_in_pixels,
-                    height=screen.height_in_pixels
+                    x=x,
+                    y=y,
+                    width=w,
+                    height=h
                 )
             else:
                 window.unmap()
+
+    def focus_window(self, window):
+        # print('focus')
+        # for other_window in self.page.get_windows():
+        #     if other_window == window:
+        #         other_window.map()
+        #     else:
+        #         other_window.unmap()
+        self.lay_out()
+        window.focus()
 
 
 layout_map = {}
